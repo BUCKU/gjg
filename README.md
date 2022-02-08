@@ -1,2 +1,2 @@
 # gjg
-go jump golang
+go jump goland
