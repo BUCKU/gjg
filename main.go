@@ -17,7 +17,7 @@ var (
 )
 
 const (
-	homePrefix = "HOME"
+	homePrefix   = "HOME"
 	gopathPrefix = "GOPATH"
 )
 
@@ -81,14 +81,12 @@ func main() {
 	}
 	fmt.Printf("starting: %s %s\n\n", cfg.GolandPath, paths[repo][0])
 	cmdGoland := exec.Command(cfg.GolandPath, paths[repo][0])
-	err = cmdGoland.Run()
+	err = cmdGoland.Start()
 	if err != nil {
 		fmt.Println(err)
 	}
 
 }
-
-
 
 func parseGoPath(path string) (map[string][]string, error) {
 	pathsMap := make(map[string][]string)
