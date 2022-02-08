@@ -56,20 +56,26 @@ func ProcessConfig(path string, reinit bool) (cfg *Config, err error) {
 			break
 		}
 	}
-	SaveConfig(home, cfg)
+	err = SaveConfig(home, cfg)
+	if err != nil {
+		return nil, err
+	}
 	return cfg, nil
 }
 
-func SaveConfig(path string, c *Config) {
+func SaveConfig(path string, c *Config) error {
 	bytes, err := json.MarshalIndent(c, " ", "    ")
 	if err != nil {
 		fmt.Errorf("failed to marshal config. %s", err)
 	}
 
-	err = os.WriteFile(path+"/"+cfgPath, bytes, 0664)
+	cfgDir := fmt.Sprintf("%s/%s", path, ".local/share/gjg")
+	os.Mkdir(cfgDir, os.ModePerm)
+	err = os.WriteFile(path+"/"+cfgPath, bytes, os.ModePerm)
 	if err != nil {
-		fmt.Errorf("failed to marshal config. %s", err)
+		return fmt.Errorf("failed to marshal config. %s", err)
 	}
+	return nil
 }
 
 func initializeConfig(cfg *Config) {
