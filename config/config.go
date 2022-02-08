@@ -48,17 +48,25 @@ func ProcessConfig(path string, reinit bool) (cfg *Config, err error) {
 		initializeConfig(cfg)
 	}
 
-	SaveConfig(cfg)
+	envs := os.Environ()
+	var home string
+	for _, v := range envs {
+		if strings.HasPrefix(v, homePrefix) {
+			home = strings.TrimLeft(v, homePrefix+"=")
+			break
+		}
+	}
+	SaveConfig(home, cfg)
 	return cfg, nil
 }
 
-func SaveConfig(c *Config) {
+func SaveConfig(path string, c *Config) {
 	bytes, err := json.MarshalIndent(c, " ", "    ")
 	if err != nil {
 		fmt.Errorf("failed to marshal config. %s", err)
 	}
 
-	err = os.WriteFile(cfgPath, bytes, 0664)
+	err = os.WriteFile(path+"/"+cfgPath, bytes, 0664)
 	if err != nil {
 		fmt.Errorf("failed to marshal config. %s", err)
 	}
