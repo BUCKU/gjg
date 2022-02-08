@@ -9,7 +9,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"gjg/config"
+	"github.com/BUCKU/gjg/config"
 )
 
 var (
