@@ -10,9 +10,8 @@ import (
 
 var (
 	homePrefix = "HOME"
-	cfgPath      = ".local/share/gjg/gjg.conf"
+	cfgPath    = ".local/share/gjg/gjg.conf"
 )
-
 
 type Config struct {
 	GolandPath string `json:"goland_path"`
@@ -49,17 +48,17 @@ func ProcessConfig(path string, reinit bool) (cfg *Config, err error) {
 		initializeConfig(cfg)
 	}
 
-	SaveConfig(path, cfg)
+	SaveConfig(cfg)
 	return cfg, nil
 }
 
-func SaveConfig(path string, c *Config) {
+func SaveConfig(c *Config) {
 	bytes, err := json.MarshalIndent(c, " ", "    ")
 	if err != nil {
 		fmt.Errorf("failed to marshal config. %s", err)
 	}
 
-	err = os.WriteFile(path, bytes, 0664)
+	err = os.WriteFile(cfgPath, bytes, 0664)
 	if err != nil {
 		fmt.Errorf("failed to marshal config. %s", err)
 	}
