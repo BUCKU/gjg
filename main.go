@@ -3,101 +3,73 @@ package main
 import (
 	"flag"
 	"fmt"
+	"go/build"
 	"io/fs"
+	"log"
 	"os"
 	"os/exec"
 	"path/filepath"
-	"strings"
 
 	"github.com/BUCKU/gjg/config"
 )
 
-var (
-	golandPath = "/home/brix/.local/share/JetBrains/Toolbox/apps/Goland/ch-0/212.5457.54/bin/goland.sh"
-)
-
 const (
-	homePrefix   = "HOME"
-	gopathPrefix = "GOPATH"
+	srcDir = "/src"
 )
 
 func main() {
 	reinit := flag.Bool("r", false, "reinit gjg")
 	flag.Parse()
 
-	args := os.Args
-	if len(args) < 2 {
-		fmt.Println("please provide project name")
-	}
-
-	envs := os.Environ()
-	var home string
-	for _, v := range envs {
-		if strings.HasPrefix(v, homePrefix) {
-			home = strings.TrimLeft(v, homePrefix+"=")
-			break
-		}
-	}
-
-	cfg, err := config.ProcessConfig(home, *reinit)
+	homeDir, err := os.UserHomeDir()
 	if err != nil {
-		err = fmt.Errorf("cant initialize gjg, %s", err)
-		fmt.Println(err.Error())
-		os.Exit(1)
+		log.Fatal(err)
 	}
 
-	var gopath string
-	for _, v := range envs {
-		if strings.HasPrefix(v, gopathPrefix) {
-			gopath = strings.TrimLeft(v, gopathPrefix+"=")
-			break
-		}
-	}
-
+	gopath := build.Default.GOPATH
 	if len(gopath) <= 1 {
-		fmt.Println("no gopath in envs")
-		os.Exit(1)
+		log.Fatal("$GOPATH is not set")
 	}
 
-	sourcesPath := gopath + "/src"
-	fmt.Printf("use path for scan '%s'\n", sourcesPath)
-
-	paths, err := parseGoPath(sourcesPath)
+	cfg, err := config.ProcessConfig(homeDir, *reinit)
 	if err != nil {
-		fmt.Printf("error at src dir crowling. %s", err.Error())
+		log.Fatalf("cannot process config: %s", err)
 	}
 
-	// TODO: verbose
-	// for i, v := range paths {
-	// 	fmt.Printf("%s: %v\n", i, v)
-	// }
-	// fmt.Printf("length %d\n", len(paths))
+	cmdGoland := exec.Command(cfg.GolandPath)
 
-	repo := os.Args[len(os.Args)-1]
+	if len(os.Args) > 1 {
+		paths, err := crawlSrcPath(filepath.Join(gopath, srcDir))
+		if err != nil {
+			log.Fatal(err)
+		}
 
-	if _, ok := paths[repo]; !ok {
-		fmt.Printf("repo didnt exist or not being parsed: '%s'", repo)
-		os.Exit(1)
+		repo := os.Args[len(os.Args)-1]
+
+		if _, ok := paths[repo]; !ok {
+			log.Fatalf("cannot find repo: '%s'", repo)
+		}
+
+		cmdGoland = exec.Command(cfg.GolandPath, paths[repo][0])
 	}
-	fmt.Printf("starting: %s %s\n\n", cfg.GolandPath, paths[repo][0])
-	cmdGoland := exec.Command(cfg.GolandPath, paths[repo][0])
+
+	fmt.Printf("opening: %s\n", cmdGoland)
 	err = cmdGoland.Start()
 	if err != nil {
 		fmt.Println(err)
 	}
-
 }
 
-func parseGoPath(path string) (map[string][]string, error) {
+func crawlSrcPath(srcPath string) (map[string][]string, error) {
 	pathsMap := make(map[string][]string)
 
-	hosts, err := os.ReadDir(path)
+	hosts, err := os.ReadDir(srcPath)
 	if err != nil {
 		return nil, err
 	}
 
 	for _, v := range hosts {
-		err := detectGitRepos(path+"/"+v.Name(), pathsMap)
+		err := detectGitRepos(filepath.Join(srcPath, v.Name()), pathsMap)
 		if err != nil {
 			return nil, err
 		}

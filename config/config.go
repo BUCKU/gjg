@@ -3,14 +3,16 @@ package config
 import (
 	"encoding/json"
 	"fmt"
+	"log"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 )
 
-var (
-	homePrefix = "HOME"
-	cfgPath    = ".local/share/gjg/gjg.conf"
+const (
+	cfgDir  = ".local/share/gjg"
+	cfgFile = "gjg.conf"
 )
 
 type Config struct {
@@ -18,7 +20,7 @@ type Config struct {
 }
 
 func ProcessConfig(path string, reinit bool) (cfg *Config, err error) {
-	cfgContents, err := os.ReadFile(path + "/" + cfgPath)
+	cfgContents, err := os.ReadFile(filepath.Join(path, cfgDir, cfgFile))
 	if err != nil {
 		if !os.IsNotExist(err) {
 			return nil, err
@@ -48,49 +50,45 @@ func ProcessConfig(path string, reinit bool) (cfg *Config, err error) {
 		initializeConfig(cfg)
 	}
 
-	envs := os.Environ()
-	var home string
-	for _, v := range envs {
-		if strings.HasPrefix(v, homePrefix) {
-			home = strings.TrimLeft(v, homePrefix+"=")
-			break
-		}
-	}
-	err = SaveConfig(home, cfg)
-	if err != nil {
+	if err = SaveConfig(path, cfg); err != nil {
 		return nil, err
 	}
+
 	return cfg, nil
 }
 
 func SaveConfig(path string, c *Config) error {
 	bytes, err := json.MarshalIndent(c, " ", "    ")
 	if err != nil {
-		fmt.Errorf("failed to marshal config. %s", err)
+		return err
 	}
 
-	cfgDir := fmt.Sprintf("%s/%s", path, ".local/share/gjg")
-	os.Mkdir(cfgDir, os.ModePerm)
-	err = os.WriteFile(path+"/"+cfgPath, bytes, os.ModePerm)
-	if err != nil {
-		return fmt.Errorf("failed to marshal config. %s", err)
+	// create config directory if not exists
+	cfgPath := filepath.Join(path, cfgDir)
+
+	if _, err := os.Stat(cfgPath); os.IsNotExist(err) {
+		if err = os.Mkdir(cfgPath, os.ModePerm); err != nil {
+			return err
+		}
 	}
+
+	if err = os.WriteFile(filepath.Join(path, cfgDir, cfgFile), bytes, os.ModePerm); err != nil {
+		return err
+	}
+
 	return nil
 }
 
 func initializeConfig(cfg *Config) {
-	envs := os.Environ()
-	var home string
-	for _, v := range envs {
-		if strings.HasPrefix(v, homePrefix) {
-			home = strings.TrimLeft(v, homePrefix+"=")
-			break
-		}
+	homeDir, err := os.UserHomeDir()
+	if err != nil {
+		log.Fatal(err)
 	}
-	cmd := exec.Command("find", home, "-name", "goland.sh")
+
+	cmd := exec.Command("find", homeDir, "-name", "goland.sh")
 	b, err := cmd.Output()
 	if err != nil {
-		fmt.Printf("failed to find goland. %s\n", err.Error())
+		log.Fatalf("failed to find goland. %s\n", err.Error())
 	}
 	output := string(b)
 	paths := strings.Split(output, "\n")
