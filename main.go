@@ -4,107 +4,86 @@ import (
 	"flag"
 	"fmt"
 	"go/build"
-	"io/fs"
-	"log"
 	"os"
 	"os/exec"
 	"path/filepath"
 
 	"github.com/BUCKU/gjg/config"
-)
-
-const (
-	srcDir = "/src"
+	"github.com/BUCKU/gjg/internal/consts"
+	"github.com/BUCKU/gjg/internal/repos_search"
+	"github.com/rs/zerolog"
+	"github.com/rs/zerolog/log"
 )
 
 func main() {
+	log.Logger = log.Output(zerolog.ConsoleWriter{Out: os.Stderr})
+
+	verbose := flag.Bool("v", false, "verbose")
+
 	reinit := flag.Bool("r", false, "reinit gjg")
 	flag.Parse()
 
+	if *verbose {
+		zerolog.SetGlobalLevel(zerolog.TraceLevel)
+	} else {
+		zerolog.SetGlobalLevel(zerolog.WarnLevel)
+	}
+
 	homeDir, err := os.UserHomeDir()
 	if err != nil {
-		log.Fatal(err)
+		log.Fatal().Err(err).Msg("get user home directory")
 	}
 
 	gopath := build.Default.GOPATH
 	if len(gopath) <= 1 {
-		log.Fatal("$GOPATH is not set")
+		log.Fatal().Msg("$GOPATH is not set")
 	}
 
 	cfg, err := config.ProcessConfig(homeDir, *reinit)
 	if err != nil {
-		log.Fatalf("cannot process config: %s", err)
+		log.Fatal().Err(err).Msg("cannot process config")
 	}
 
 	cmdGoland := exec.Command(cfg.GolandPath)
 
 	if len(os.Args) > 1 {
-		paths, err := crawlSrcPath(filepath.Join(gopath, srcDir))
+		goSrcPath := filepath.Join(gopath, consts.GoSrcDir)
+		reposPaths, err := repos_search.CrawlPath(goSrcPath)
 		if err != nil {
-			log.Fatal(err)
+			log.Fatal().Err(err).Str("path", goSrcPath).Msg("crawling go sources")
 		}
 
-		repo := os.Args[len(os.Args)-1]
+		repoToFind := os.Args[len(os.Args)-1]
 
-		if _, ok := paths[repo]; !ok {
-			log.Fatalf("cannot find repo: '%s'", repo)
+		var reposWithName []string
+		var ok bool
+		if reposWithName, ok = reposPaths[repoToFind]; !ok {
+			log.Fatal().Str("repo to find", repoToFind).Msg("search repo")
 		}
 
-		cmdGoland = exec.Command(cfg.GolandPath, paths[repo][0])
-	}
-
-	fmt.Printf("opening: %s\n", cmdGoland)
-	err = cmdGoland.Start()
-	if err != nil {
-		fmt.Println(err)
-	}
-}
-
-func crawlSrcPath(srcPath string) (map[string][]string, error) {
-	pathsMap := make(map[string][]string)
-
-	hosts, err := os.ReadDir(srcPath)
-	if err != nil {
-		return nil, err
-	}
-
-	for _, v := range hosts {
-		err := detectGitRepos(filepath.Join(srcPath, v.Name()), pathsMap)
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	return pathsMap, nil
-}
-
-func detectGitRepos(path string, pathsMap map[string][]string) error {
-	return filepath.WalkDir(path, func(path string, d fs.DirEntry, err error) error {
-		var dif []os.DirEntry
-
-		stat, err := os.Stat(path)
-		if err != nil {
-			fmt.Printf("failed to get fsstat of path: %s, %s", path, err.Error())
-			return nil
-		}
-
-		if stat.IsDir() {
-			if dif, err = os.ReadDir(path); err != nil {
-				fmt.Printf("failed to read dir %s\n", path)
+		repoOfChoice := reposPaths[repoToFind][0]
+		if len(reposWithName) > 1 {
+			fmt.Printf("There is different repos with the same name, choose one to open:\n")
+			for i, v := range reposWithName {
+				fmt.Printf("[%d] %s", i, v)
 			}
-			for _, v := range dif {
-				if v.Name() == ".git" {
-					fp := filepath.Base(path)
-
-					if _, ok := pathsMap[fp]; !ok {
-						pathsMap[fp] = []string{path}
-					} else {
-						pathsMap[fp] = append(pathsMap[v.Name()], path)
-					}
-					break
-				}
+			choose := 0
+			_, err := fmt.Scanln(&choose)
+			if err != nil {
+				log.Fatal().Err(err).Msg("scan user input")
 			}
+			if choose > len(reposWithName) {
+				log.Warn().Int("user input", choose).Msg("no repo with such index, using first repo in list")
+				choose = 0
+			}
+			repoOfChoice = reposWithName[choose]
 		}
-		return nil
-	})
+
+		cmdGoland = exec.Command(cfg.GolandPath, repoOfChoice)
+		log.Info().Str("command", cmdGoland.String()).Str("args", repoOfChoice).Msg("execute")
+		err = cmdGoland.Start()
+		if err != nil {
+			log.Error().Err(err).Str("command", cmdGoland.String()).Str("args", repoOfChoice).Msg("execute")
+		}
+	}
 }
