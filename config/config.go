@@ -2,12 +2,14 @@ package config
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
-	"log"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
+
+	"github.com/rs/zerolog/log"
 )
 
 const (
@@ -82,13 +84,16 @@ func SaveConfig(path string, c *Config) error {
 func initializeConfig(cfg *Config) {
 	homeDir, err := os.UserHomeDir()
 	if err != nil {
-		log.Fatal(err)
+		log.Fatal().Err(err).Msg("failed to recognize homedir")
 	}
 
 	cmd := exec.Command("find", homeDir, "-name", "goland.sh")
 	b, err := cmd.Output()
+	if len(b) == 0 {
+		log.Fatal().Err(errors.New("find didn't find anything")).Str("search", "goland.sh").Send()
+	}
 	if err != nil {
-		log.Fatalf("failed to find goland. %s\n", err.Error())
+		log.Error().Err(err).Str("search", "goland.sh").Msg("errors finding goland.sh")
 	}
 	output := string(b)
 	paths := strings.Split(output, "\n")

@@ -8,11 +8,12 @@ import (
 	"os/exec"
 	"path/filepath"
 
+	"github.com/rs/zerolog"
+	"github.com/rs/zerolog/log"
+
 	"github.com/BUCKU/gjg/config"
 	"github.com/BUCKU/gjg/internal/consts"
 	"github.com/BUCKU/gjg/internal/repos_search"
-	"github.com/rs/zerolog"
-	"github.com/rs/zerolog/log"
 )
 
 func main() {
@@ -50,7 +51,7 @@ func main() {
 		goSrcPath := filepath.Join(gopath, consts.GoSrcDir)
 		reposPaths, err := repos_search.CrawlPath(goSrcPath)
 		if err != nil {
-			log.Fatal().Err(err).Str("path", goSrcPath).Msg("crawling go sources")
+			log.Fatal().Err(err).Str("path", goSrcPath).Msg("crawling go sources failed.")
 		}
 
 		repoToFind := os.Args[len(os.Args)-1]
@@ -58,7 +59,7 @@ func main() {
 		var reposWithName []string
 		var ok bool
 		if reposWithName, ok = reposPaths[repoToFind]; !ok {
-			log.Fatal().Str("repo to find", repoToFind).Msg("search repo")
+			log.Fatal().Str("name", repoToFind).Msg("search repo failed. repo dir must contain either 'go.mod' or '.git' entry.")
 		}
 
 		repoOfChoice := reposPaths[repoToFind][0]
