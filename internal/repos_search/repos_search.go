@@ -40,7 +40,7 @@ func detectGitRepos(path string, pathsMap map[string][]string) error {
 				fmt.Printf("failed to read dir %s\n", path)
 			}
 			for _, v := range dif {
-				if v.Name() == ".git" {
+				if v.Name() == ".git" || v.Name() == "go.mod" {
 					fp := filepath.Base(path)
 
 					if _, ok := pathsMap[fp]; !ok {
