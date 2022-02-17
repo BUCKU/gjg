@@ -46,7 +46,7 @@ func detectGitRepos(path string, pathsMap map[string][]string) error {
 					if _, ok := pathsMap[fp]; !ok {
 						pathsMap[fp] = []string{path}
 					} else {
-						pathsMap[fp] = append(pathsMap[v.Name()], path)
+						pathsMap[fp] = append(pathsMap[fp], path)
 					}
 					break
 				}
