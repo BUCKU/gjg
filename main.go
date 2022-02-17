@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
@@ -66,7 +67,8 @@ func main() {
 		if len(reposWithName) > 1 {
 			fmt.Printf("There is different repos with the same name, choose one to open:\n")
 			for i, v := range reposWithName {
-				fmt.Printf("[%d] %s", i, v)
+				trimmedPath := v[strings.Index(v, "/src/")+len("/src/"):]
+				fmt.Printf("[%d] %s\n", i, trimmedPath)
 			}
 			choose := 0
 			_, err := fmt.Scanln(&choose)
