@@ -97,7 +97,7 @@ func initializeConfig(cfg *Config) {
 			log.Warn().Err(errors.New("find didn't find anything")).Str("search", "goland.sh").Str("path", v).Send()
 			continue
 		}
-		if err != nil {
+		if err != nil && len(b) == 0 {
 			log.Error().Err(err).Str("search", "goland.sh").Msg("errors finding goland.sh")
 		}
 		output := string(b)
