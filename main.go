@@ -50,12 +50,22 @@ func main() {
 
 	if len(os.Args) > 1 {
 		goSrcPath := filepath.Join(gopath, consts.GoSrcDir)
+		repoToFind := os.Args[len(os.Args)-1]
+
+		if repoToFind == "." {
+			cmdGoland = exec.Command(cfg.GolandPath, ".")
+			log.Info().Str("command", cmdGoland.String()).Str("args", ".").Msg("execute")
+			err = cmdGoland.Start()
+			if err != nil {
+				log.Error().Err(err).Str("command", cmdGoland.String()).Str("args", ".").Msg("execute")
+			}
+			return
+		}
+
 		reposPaths, err := repos_search.CrawlPath(goSrcPath)
 		if err != nil {
 			log.Fatal().Err(err).Str("path", goSrcPath).Msg("crawling go sources failed.")
 		}
-
-		repoToFind := os.Args[len(os.Args)-1]
 
 		var reposWithName []string
 		var ok bool
