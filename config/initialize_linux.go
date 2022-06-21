@@ -2,6 +2,16 @@
 
 package config
 
+import (
+	"errors"
+	"fmt"
+	"os"
+	"os/exec"
+	"strings"
+
+	"github.com/rs/zerolog/log"
+)
+
 const (
 	cfgDir  = ".local/share/gjg"
 	cfgFile = "gjg.conf"
